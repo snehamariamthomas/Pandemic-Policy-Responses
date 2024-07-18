@@ -1,0 +1,202 @@
+---
+title: "Global Responses to COVID-19: Lockdowns and Income Support (2020-2022)"
+author: "Sneha Mariam Thomas"
+output: html_document
+---
+
+&nbsp;
+
+```{r setup, include=FALSE} 
+
+knitr::opts_chunk$set(echo = FALSE)
+
+```
+
+  
+```{r, message= FALSE, warning=FALSE}
+
+data= read.csv("C:/Users/sneha/OneDrive/Desktop/Semester 1/Data for Data Scientist/Assessment/SA1/Exercise 2/data/OxCGRT_compact_national_v1.csv")
+options(repos = c(CRAN = "https://cran.rstudio.com")) 
+library(tidyverse)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+# Convert date from numeric to date object
+data<-data %>% 
+  mutate(Date= as.Date(as.character(data$Date),format="%Y%m%d"))
+
+# Populating regions of world
+library(countrycode)
+data<-data %>% 
+  mutate(RegionName= countrycode(CountryName,'country.name','region'))
+
+# DATA PROCESSING FOR VISUALISATION
+
+## Clubbing countries
+data$MergedRegion <- ifelse(data$RegionName %in% c('Latin America & Caribbean', 'North America'), 'Pan America', 
+                            ifelse(data$RegionName %in% c('South Asia', 'East Asia & Pacific'), 'Asia Pacific', 
+                                   ifelse(data$RegionName %in% c('Sub-Saharan Africa', 'Middle East & North Africa'), 'Africa & Middle East', 
+                                          as.character(data$RegionName))))
+
+## Simplify scale of stay at home directives
+restrictions_labels <- c("None", "Restrictive", "Lockdown")
+
+data <- data %>% 
+  mutate(C6M_Stay.at.home.requirements = factor(recode(C6M_Stay.at.home.requirements, 
+                                                       `0` = "None", 
+                                                       `1` = "Restrictive", 
+                                                       `2` = "Restrictive", 
+                                                       `3` = "Lockdown"), 
+                                                levels =restrictions_labels))
+
+
+## Simplyifying scale of income support
+support_labels <- c("No Income Support","Income Assistance")
+
+data <- data %>% 
+  mutate(E1_Income.support = factor(recode(E1_Income.support, 
+                                                       `0` = "No Income Support", 
+                                                       `1` = "Income Assistance", 
+                                                       `2` = "Income Assistance"), 
+                                                levels = support_labels))
+
+# Organising Data and changing column names
+covid_data <-data %>% 
+  select(Country=CountryName ,
+         Region=MergedRegion,
+         Date,
+         Confinement_Levels=C6M_Stay.at.home.requirements ,
+         Income_Support=E1_Income.support)
+
+```
+### __Introduction__  
+The COVID-19 pandemic, which emerged in late 2019, swiftly evolved into a global health crisis of unprecedented scale, profoundly impacting societies, economies, and governance worldwide. As nations grappled with the complexities of containing the virus, governments implemented a range of measures aimed at mitigating its spread and minimizing its socio-economic consequences. Among these measures, recommendations or mandates for citizens to stay at home emerged as a pivotal strategy to curb transmission rates.
+
+From a policy analysis perspective, understanding the implementation and effectiveness of stay-at-home orders across different regions is crucial. These measures not only directly affected individual freedoms and daily life but also had profound implications for public health outcomes, economic stability, and social cohesion. Moreover, the parallel implementation of income support measures by governments sought to mitigate the economic hardships caused by these restrictions, highlighting a critical intersection between public health policy and socio-economic policy responses.
+
+This study aims to explore the extent to which various regions of the world enforced stay-at-home recommendations or restrictions from 2020 to 2022. It further investigates how these measures correlate with the implementation of income support initiatives within each region. By analyzing these responses, this research seeks to provide insights into the effectiveness of different policy approaches in managing the dual challenges posed by the pandemic: safeguarding public health while supporting economic resilience.
+
+Understanding the interplay between public health interventions and socio-economic policies during the COVID-19 pandemic not only informs immediate crisis management strategies but also contributes valuable lessons for future policy development and preparedness in the face of similar global health emergencies.  
+
+&nbsp;
+
+### __Research Question__    
+To what extent did different regions of the world implement some form of recommendation or restriction for citizens to stay at home over the course of 2020-2022? How do the introduction of these restrictions compare to the regions’ implementation of income support over the same period?  
+
+&nbsp;
+
+### __Data__  
+The __Oxford Covid-19 Government Response Tracker (OxCGRT)__ meticulously records COVID-19 policy responses globally from __2020 to 2022__, encompassing __over 180 countries__ and 200+ subnational regions. This extensive dataset includes __23 crucial policy indicators__, such as school closures, travel restrictions, mask mandates, and vaccination policies. For the analysis, the focus was on the following key policy indicators: __stay-at-home directives (encoded as ID C6)__ and __income support measures (encoded as ID E1)__ from this data set. These indicators were pivotal in addressing our research questions, providing invaluable insights into pandemic-related policy implementations.  
+
+&nbsp;  
+
+### __Data Preprocessing__    
+
+1. __Reorganising Countries__:    
+Initially, countries were classified into the following regions: 'Latin America & Caribbean,' 'South Asia,' 'Sub-Saharan Africa,' 'Europe & Central Asia,' 'Middle East & North Africa,' 'East Asia & Pacific,' and 'North America' using the R's *countrycode* package. The regions were streamlined by regrouping countries into broader categories: __PAN AMERICA__ (Latin America & Caribbean + North America), __ASIA PACIFIC__ (South Asia + East Asia & Pacific), __AFRICA & MIDDLE EAST__ (Sub-Saharan Africa + Middle East & North Africa), while __EUROPE & CENTRAL ASIA__ remained unchanged.  This consolidation fosters a focused yet simplified analysis, allowing for meaningful insights across larger geographic areas. Considering the spatial spread of COVID-19, this approach, based on proximity, aids in understanding policy implementation within spatially connected regions. The subsequent list outlines the countries that have been organized under each respective region:  
+
+```{r, message=FALSE}
+# Listing total Countries under each region
+total_countries_by_region <- covid_data %>%
+  group_by(Region) %>%
+  summarise(
+    TotalCountries = n_distinct(Country),
+    CountryNames = paste(unique(Country), collapse = ', ')
+  )
+
+
+kable(total_countries_by_region, format = "html") %>%
+  kable_styling(full_width = FALSE) %>%
+  row_spec(0, bold = TRUE)%>% kable_styling(full_width = 100)%>%column_spec(c(1:3), border_left = TRUE, border_right = TRUE)
+```
+
+
+2. __Simplifying Scale__   
+- __Stay at Home Directives__: The variable was recategorised to enhance clarity and analytical focus. The original categories spanned from no measures (0) to recommending staying home (1) and requiring limited outings (2), to strict stay-at-home mandates with minimal exceptions (3). To simplify the analysis, categories 1 and 2 were merged into "Restrictive Measures," encompassing both recommended and limited-exception stay-at-home orders. While category 0, signifying no restrictions, and Category 3, denoting a more stringent 'Lockdown' scenario, remained unchanged. This reclassification preserves the nuances of stay-at-home measures while providing a clear distinction between no restrictions, restrictive measures, and strict lockdowns, thereby facilitating a more precise examination of the data.  
+
+- __Income Support__: The Income support variable, initially comprising levels indicating no income support (0), partial income replacement below 50% of lost salary (1), and substantial income replacement at 50% or more of lost salary (2), has been refined for analytical clarity. Notably, Level 0, signifying no income support, remained unchanged. However, categories 1 and 2 were amalgamated into some form of income support,"Income Assistance," encompassing both partial and substantial income replacement measures.  This reclassification streamlines the various income support initiatives, facilitating a detailed examination of the diverse levels of financial assistance provided by the government across various sectors.  
+
+&nbsp;
+
+### __Methodology__  
+Countries were classified into regions as specified in the above table. The dataset, comprising daily statistics from January 1, 2020, to December 31, 2022, underwent the following process: assessing the daily income support levels of each country and subsequently reorganizing them based on that day's respective stay-at-home directives. Total counts for countries under each region for each category (no income support/income assistance) and subsequent subcategory(stay at home directives: none, restrictive, lockdown) were computed based on these daily evaluations, serving as the foundation for the subsequent analysis in the paper.  
+
+&nbsp;
+
+### __Findings__ 
+```{r message=FALSE, warning=FALSE, fig.width=8, fig.height=4}
+#Visualisation
+
+plot_data_restrictions<- covid_data %>% 
+  group_by(Income_Support,Date, Region,Confinement_Levels) %>% 
+  summarise(countries_count = n_distinct(Country))
+
+covid_plot =ggplot() +
+  geom_line(data=plot_data_restrictions,aes(x = Date, y = countries_count,colour = Confinement_Levels)) +
+  scale_colour_manual(values=
+                        c("None"="#4CAF50",
+                          "Restrictive"="orange",
+                          "Lockdown"="#FF1B1B")) +
+  facet_grid(Income_Support~Region,labeller = label_wrap_gen(width = 10))+
+  theme_bw()+
+  labs(title = "Global COVID-19 Responses: Confinement & Income Support",
+       x = "\n Time Span: Jan'20-Dec'22",
+       y = "Number of Countries \n",
+       colour="Stay at Home \n Directives",
+       caption= "\n Source:Oxford COVID-19 Government Response Tracker, Blavatnik School of Government, University of Oxford.") +
+  theme(axis.text.x=element_text(angle=90),
+        strip.background = element_rect(fill = "steelblue", color = "black"),
+        strip.text =element_text(color="white"),
+        plot.title =
+          element_text(size = 15,
+                       face = "bold",
+                       color = "darkblue",
+                       hjust = 0.5),
+        axis.text =
+          element_text(size = 8,
+                       color = "steelblue"),
+        axis.title =
+          element_text(size = 10,
+                       color = "steelblue",
+                       face = "bold"),
+        plot.caption=element_text(size=8, colour="steelblue", hjust=0.5),
+        legend.box.background = element_rect(color = "steelblue", size = 1),
+        legend.box.margin = margin(0, 0, 0, 0),
+        legend.title = element_text(size = 8, face="bold"),
+        legend.text = element_text(size = 7))
+covid_plot
+
+```
+
+#### __1. General Trends__:    
+- The graph  demonstrates that countries offering income support across regions were able to put restrictive measures in place to contain spread of Covid, as evidenced by the consistently higher line representing restrictions (orange line graph) compared to other lines from 2020 to the end of 2021, and in certain regions, even beyond 2021. Conversely, in regions lacking income support, there was evident hesitance among countries to impose restrictions. The first row, depicting countries across regions without income support, shows a continuous overlap between "none" and "restrictive" categories exhibiting no distinct trend, except in Africa and the Middle East region.  
+- During the onset of covid and the various covid waves, it can be observed that countries lacking income support displayed a noticeable urgency to lift all restrictions, evident from the steep and consistent rise in the green line graph in the first row. In contrast, countries with income support adopted a cautious approach, opting for a gradual removal of restrictions.  
+- Although only a few countries issued lockdown directives, countries where income support was provided displayed the capability to implement lockdowns when required, demonstrated by the variations in the red line in the second row. In contrast, countries lacking income support faced challenges in this regard as evidenced by a little or no variation and predominantly 0 (count) values in the red line graph.
+- As the uncertainties surrounding COVID-19 diminished over time, a discernible trend emerged: income support gradually decreased across most regions. This shift was evident as the number of countries under each stay-at-home category declined in income support grouping, coupled with a simultaneous increase in countries with no restrictions within the no income support groups.  
+
+&nbsp;
+
+#### __2. Region Specific Trends__:  
+- In the Asia Pacific region, where income support was provided, a consistent pattern of frequent and regular lockdowns was observed, indicated by the highest variation in recorded instances.
+- Utilizing a simplified approach involving the observation of line graph peaks and calculating the countries represented on random days corresponding to these peaks, notable findings emerged. Africa and Middle East region exhibited notable rigidity in their approaches. Throughout the observed period, the total number of countries offering income support in these regions remained consistently lower than those without such assistance. Moreover, within the countries that lacked income support, a majority continued to enforce restrictions without providing any safety nets, highlighting a lack of supportive measures despite stringent restrictions.
+- Whereas both the Europe-Central Asia and Pan America regions had a higher count of countries offering income support compared to those in the same regions without such assistance. Europe-Central Asia had the highest absolute number of countries offering income support, approximately 40 out of 52, each implementing varying levels of restrictions. Conversely, Pan America demonstrated the highest relative number of countries providing income support, around 27 out of 34, each with different degrees of restrictions.This observation underscores the presence of major developed countries in these regions, equipped with the capacity to provide immediate income support as a rapid response to the challenges posed by COVID-19.    
+
+&nbsp;
+
+### __Conclusion__    
+In summary, the research examined the global implementation of stay-at-home directives from 2020 to 2022 and compared these strategies with income support measures across different regions. The analysis revealed that regions with robust income support systems demonstrated quicker and more adaptable responses, implementing restrictions effectively. Conversely, regions lacking comprehensive income support faced challenges, leading to delayed and less consistent imposition of restrictions. This study highlights the crucial role of income support in shaping pandemic responses and emphasizes the need for comprehensive support systems for effective crisis management in the future.  
+
+&nbsp;
+
+### __Reference__
+Thomas Hale, Noam Angrist, Rafael Goldszmidt, Beatriz Kira, Anna Petherick, Toby Phillips, Samuel Webster, Emily Cameron-Blake, Laura Hallas, Saptarshi Majumdar, and Helen Tatlow. (2021). “A global panel database of pandemic policies (Oxford COVID-19 Government Response Tracker).” Nature Human Behaviour. https://doi.org/10.1038/s41562-021-01079-8  
+
+&nbsp;
+
+### __Appendix: Code__
+
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE} 
+# this chunk generates the complete code appendix. 
+# eval=FALSE tells R not to run (``evaluate'') the code here (it was already run before).
+```
