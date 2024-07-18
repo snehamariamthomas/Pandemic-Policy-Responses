@@ -1,6 +1,6 @@
 # COVID-19 Policy Responses: Analyzing Lockdowns and Income Support (2020-2022)
 ![Image Alt Text](Lockdown.jpg)
-##### Image Source:Queen Mary University of London (2020)
+###### Image Source: Queen Mary University of London (2020)
 
 
 # Summary
